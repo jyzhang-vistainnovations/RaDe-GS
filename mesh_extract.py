@@ -15,6 +15,7 @@ import open3d.core as o3c
 from scene.dataset_readers import sceneLoadTypeCallbacks
 from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
 import json
+from PIL import Image
 
 
 def load_camera(args):
@@ -55,7 +56,12 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
     depth_list = []
     color_list = []
     alpha_thres = 0.5
-    for viewpoint_cam in viewpoint_cam_list:
+
+    # Create a directory to save depth maps
+    depth_save_dir = os.path.join(dataset.model_path, "depth_maps")
+    os.makedirs(depth_save_dir, exist_ok=True)
+
+    for idx, viewpoint_cam in enumerate(viewpoint_cam_list):
         # Rendering offscreen from that camera
         render_pkg = render(viewpoint_cam, gaussians, pipe, background, kernel_size)
         rendered_img = (
@@ -69,7 +75,20 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
         if viewpoint_cam.gt_mask is not None:
             depth[(viewpoint_cam.gt_mask < 0.5)] = 0
         depth[render_pkg["mask"] < alpha_thres] = 0
-        depth_list.append(depth[0].cpu().numpy())
+        depth_np = depth[0].cpu().numpy()
+        depth_list.append(depth_np)
+
+        # Save depth map
+        depth_filename = f"depth_map_{idx:04d}.png"
+        depth_path = os.path.join(depth_save_dir, depth_filename)
+
+        # Normalize depth for visualization
+        depth_normalized = (
+            (depth_np - depth_np.min()) / (depth_np.max() - depth_np.min()) * 255
+        ).astype(np.uint8)
+        depth_image = Image.fromarray(depth_normalized)
+        depth_image.save(depth_path)
+        print(f"Saved depth map to {depth_path}")
 
     torch.cuda.empty_cache()
     voxel_size = 0.002
