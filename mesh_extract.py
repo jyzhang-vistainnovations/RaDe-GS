@@ -16,6 +16,7 @@ from scene.dataset_readers import sceneLoadTypeCallbacks
 from utils.camera_utils import cameraList_from_camInfos, camera_to_JSON
 import json
 from PIL import Image
+import cv2
 
 
 def load_camera(args):
@@ -29,6 +30,18 @@ def load_camera(args):
             args.source_path, args.white_background, args.eval
         )
     return cameraList_from_camInfos(scene_info.train_cameras, 1.0, args)
+
+
+def compute_normal_map(depth_map):
+    """Compute normal map from depth map."""
+    zx = cv2.Sobel(depth_map, cv2.CV_32F, 1, 0, ksize=3)
+    zy = cv2.Sobel(depth_map, cv2.CV_32F, 0, 1, ksize=3)
+    normal_map = np.dstack((-zx, -zy, np.ones_like(depth_map)))
+    n = np.linalg.norm(normal_map, axis=2)
+    normal_map /= n[:, :, np.newaxis]
+    # Convert to RGB
+    normal_map = (normal_map * 0.5 + 0.5) * 255
+    return normal_map.astype(np.uint8)
 
 
 def extract_mesh(dataset, pipe, checkpoint_iterations=None):
@@ -57,9 +70,11 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
     color_list = []
     alpha_thres = 0.5
 
-    # Create a directory to save depth maps
+    # Create directories to save depth and normal maps
     depth_save_dir = os.path.join(dataset.model_path, "depth_maps")
+    normal_save_dir = os.path.join(dataset.model_path, "normal_maps")
     os.makedirs(depth_save_dir, exist_ok=True)
+    os.makedirs(normal_save_dir, exist_ok=True)
 
     for idx, viewpoint_cam in enumerate(viewpoint_cam_list):
         # Rendering offscreen from that camera
@@ -89,6 +104,14 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
         depth_image = Image.fromarray(depth_normalized)
         depth_image.save(depth_path)
         print(f"Saved depth map to {depth_path}")
+
+        # Compute and save normal map
+        normal_map = compute_normal_map(depth_np)
+        normal_filename = f"normal_map_{idx:04d}.png"
+        normal_path = os.path.join(normal_save_dir, normal_filename)
+        normal_image = Image.fromarray(normal_map)
+        normal_image.save(normal_path)
+        print(f"Saved normal map to {normal_path}")
 
     torch.cuda.empty_cache()
     voxel_size = 0.002
