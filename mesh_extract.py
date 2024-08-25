@@ -79,11 +79,13 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
     color_list = []
     alpha_thres = 0.5
 
-    # Create directories to save depth and normal maps
+    # Create directories to save depth maps, normal maps, and full depth data
     depth_save_dir = os.path.join(dataset.model_path, "depth_maps")
     normal_save_dir = os.path.join(dataset.model_path, "normal_maps")
+    full_depth_save_dir = os.path.join(dataset.model_path, "full_depth_data")
     os.makedirs(depth_save_dir, exist_ok=True)
     os.makedirs(normal_save_dir, exist_ok=True)
+    os.makedirs(full_depth_save_dir, exist_ok=True)
 
     for idx, viewpoint_cam in enumerate(viewpoint_cam_list):
         # Rendering offscreen from that camera
@@ -102,7 +104,7 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
         depth_np = depth[0].cpu().numpy()
         depth_list.append(depth_np)
 
-        # Save depth map
+        # Save visualized depth map
         depth_filename = f"depth_map_{idx:04d}.png"
         depth_path = os.path.join(depth_save_dir, depth_filename)
 
@@ -110,7 +112,13 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
         depth_normalized = normalize_depth(depth_np)
         depth_image = Image.fromarray(depth_normalized)
         depth_image.save(depth_path)
-        print(f"Saved depth map to {depth_path}")
+        print(f"Saved visualized depth map to {depth_path}")
+
+        # Save full depth data as .pt file
+        full_depth_filename = f"full_depth_{idx:04d}.pt"
+        full_depth_path = os.path.join(full_depth_save_dir, full_depth_filename)
+        torch.save(depth, full_depth_path)
+        print(f"Saved full depth data to {full_depth_path}")
 
         # Compute and save normal map
         normal_map = compute_normal_map(depth_np)
