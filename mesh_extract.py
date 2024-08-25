@@ -39,9 +39,7 @@ def compute_normal_map(depth_map):
     normal_map = np.dstack((-zx, -zy, np.ones_like(depth_map)))
     n = np.linalg.norm(normal_map, axis=2)
     normal_map /= n[:, :, np.newaxis]
-    # Convert to RGB
-    normal_map = (normal_map * 0.5 + 0.5) * 255
-    return normal_map.astype(np.uint8)
+    return normal_map
 
 
 def normalize_depth(depth_np, lower_percentile=1, upper_percentile=99):
@@ -79,13 +77,15 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
     color_list = []
     alpha_thres = 0.5
 
-    # Create directories to save depth maps, normal maps, and full depth data
+    # Create directories to save depth maps, normal maps, and full data
     depth_save_dir = os.path.join(dataset.model_path, "depth_maps")
     normal_save_dir = os.path.join(dataset.model_path, "normal_maps")
     full_depth_save_dir = os.path.join(dataset.model_path, "full_depth_data")
+    full_normal_save_dir = os.path.join(dataset.model_path, "full_normal_data")
     os.makedirs(depth_save_dir, exist_ok=True)
     os.makedirs(normal_save_dir, exist_ok=True)
     os.makedirs(full_depth_save_dir, exist_ok=True)
+    os.makedirs(full_normal_save_dir, exist_ok=True)
 
     for idx, viewpoint_cam in enumerate(viewpoint_cam_list):
         # Rendering offscreen from that camera
@@ -120,13 +120,22 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
         torch.save(depth, full_depth_path)
         print(f"Saved full depth data to {full_depth_path}")
 
-        # Compute and save normal map
-        normal_map = compute_normal_map(depth_np)
+        # Compute full normal map
+        full_normal_map = compute_normal_map(depth_np)
+
+        # Save full normal map data as .pt file
+        full_normal_filename = f"full_normal_{idx:04d}.pt"
+        full_normal_path = os.path.join(full_normal_save_dir, full_normal_filename)
+        torch.save(torch.from_numpy(full_normal_map), full_normal_path)
+        print(f"Saved full normal map data to {full_normal_path}")
+
+        # Save visualized normal map
+        normal_map_vis = ((full_normal_map + 1) * 0.5 * 255).astype(np.uint8)
         normal_filename = f"normal_map_{idx:04d}.png"
         normal_path = os.path.join(normal_save_dir, normal_filename)
-        normal_image = Image.fromarray(normal_map)
+        normal_image = Image.fromarray(normal_map_vis)
         normal_image.save(normal_path)
-        print(f"Saved normal map to {normal_path}")
+        print(f"Saved visualized normal map to {normal_path}")
 
     torch.cuda.empty_cache()
     voxel_size = 0.002
