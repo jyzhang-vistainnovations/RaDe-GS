@@ -44,6 +44,15 @@ def compute_normal_map(depth_map):
     return normal_map.astype(np.uint8)
 
 
+def normalize_depth(depth_np, lower_percentile=1, upper_percentile=99):
+    """Normalize depth values, excluding extremities."""
+    min_depth = np.percentile(depth_np[depth_np > 0], lower_percentile)
+    max_depth = np.percentile(depth_np[depth_np > 0], upper_percentile)
+    normalized = np.clip(depth_np, min_depth, max_depth)
+    normalized = (normalized - min_depth) / (max_depth - min_depth)
+    return (normalized * 255).astype(np.uint8)
+
+
 def extract_mesh(dataset, pipe, checkpoint_iterations=None):
     gaussians = GaussianModel(dataset.sh_degree)
     output_path = os.path.join(dataset.model_path, "point_cloud")
@@ -97,10 +106,8 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
         depth_filename = f"depth_map_{idx:04d}.png"
         depth_path = os.path.join(depth_save_dir, depth_filename)
 
-        # Normalize depth for visualization
-        depth_normalized = (
-            (depth_np - depth_np.min()) / (depth_np.max() - depth_np.min()) * 255
-        ).astype(np.uint8)
+        # Normalize depth for visualization, excluding extremities
+        depth_normalized = normalize_depth(depth_np)
         depth_image = Image.fromarray(depth_normalized)
         depth_image.save(depth_path)
         print(f"Saved depth map to {depth_path}")
