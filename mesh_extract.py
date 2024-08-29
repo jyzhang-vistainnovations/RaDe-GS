@@ -104,8 +104,11 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
         depth_np = depth[0].cpu().numpy()
         depth_list.append(depth_np)
 
+        # Use the original image name from camera info
+        original_name = viewpoint_cam.image_name
+
         # Save visualized depth map
-        depth_filename = f"depth_map_{idx:04d}.png"
+        depth_filename = f"{original_name}.png"
         depth_path = os.path.join(depth_save_dir, depth_filename)
 
         # Normalize depth for visualization, excluding extremities
@@ -115,7 +118,7 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
         print(f"Saved visualized depth map to {depth_path}")
 
         # Save full depth data as .pt file
-        full_depth_filename = f"full_depth_{idx:04d}.pt"
+        full_depth_filename = f"{original_name}.pt"
         full_depth_path = os.path.join(full_depth_save_dir, full_depth_filename)
         torch.save(depth, full_depth_path)
         print(f"Saved full depth data to {full_depth_path}")
@@ -124,14 +127,14 @@ def extract_mesh(dataset, pipe, checkpoint_iterations=None):
         full_normal_map = compute_normal_map(depth_np)
 
         # Save full normal map data as .pt file
-        full_normal_filename = f"full_normal_{idx:04d}.pt"
+        full_normal_filename = f"{original_name}.pt"
         full_normal_path = os.path.join(full_normal_save_dir, full_normal_filename)
         torch.save(torch.from_numpy(full_normal_map), full_normal_path)
         print(f"Saved full normal map data to {full_normal_path}")
 
         # Save visualized normal map
         normal_map_vis = ((full_normal_map + 1) * 0.5 * 255).astype(np.uint8)
-        normal_filename = f"normal_map_{idx:04d}.png"
+        normal_filename = f"{original_name}.png"
         normal_path = os.path.join(normal_save_dir, normal_filename)
         normal_image = Image.fromarray(normal_map_vis)
         normal_image.save(normal_path)
