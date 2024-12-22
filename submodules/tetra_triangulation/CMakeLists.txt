@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.16.3)
+# set(CMAKE_CUDA_COMPILER "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.1/bin/nvcc.exe")
 project(fast_traversal LANGUAGES CXX CUDA)
 enable_language(CUDA)
+
+set(CMAKE_CUDA_STANDARD 14)
+set(CMAKE_CUDA_ARCHITECTURES 86)
 
 include(FetchContent)
 # Add paths to our CMake code to the module path, so they can be found automatically by
@@ -10,8 +14,9 @@ set(CMAKE_BUILD_TYPE "Release")
 
 find_library(libcnpy cnpy ${CONDA_PREFIX}/lib)
 include_directories(${CONDA_PREFIX}/include)
+include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}) 
 
-# TODO: fix this
+# TODO: fix thiss
 find_package(Torch REQUIRED)
 find_package(CGAL REQUIRED)
 # find_package(pybind11 REQUIRED)
@@ -19,7 +24,7 @@ find_package(CGAL REQUIRED)
 include(FetchContent)
 FetchContent_Declare(
     pybind11
-    GIT_REPOSITORY https://github.com/pybind/pybind11
+    GIT_REPOSITORY https://github.com/pybind/pybind11   
     GIT_TAG        v2.9.2
 )
 FetchContent_GetProperties(pybind11)
@@ -55,9 +60,17 @@ set(CUDA_GENERATED_OUTPUT_DIR "${BUILD_DIRECTORY}")
 
 # configure_file(${generated_files} file.ptx.h)
 add_link_options(-flto=auto)  # disables some warning
+
 pybind11_add_module(tetranerf_cpp_extension 
     src/triangulation.cpp
     src/py_binding.cpp)
+
+if(MSVC)
+    target_compile_options(tetranerf_cpp_extension PRIVATE 
+        /wd4996
+        $<$<COMPILE_LANGUAGE:CXX>:/WX- /W3>)
+    string(REGEX REPLACE "-Wno-deprecated-declarations" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+endif()
 
 target_link_libraries(tetranerf_cpp_extension PRIVATE ${CUDA_LIBRARIES} ${TORCH_LIBRARIES})
 target_link_libraries(tetranerf_cpp_extension PRIVATE CGAL::CGAL)

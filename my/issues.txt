@@ -1,0 +1,7 @@
+cmake:
+
+CudaToolkitDir (may not be relevant any more because of the following)
+https://blog.csdn.net/friendan/article/details/122517340
+
+tetra_triangulation
+https://claude.ai/chat/1ae374c4-bcff-4177-8744-c60346330077
